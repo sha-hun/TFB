@@ -109,6 +109,7 @@ def pipeline(
         if dataset_name not in PREDEFINED_DATASETS:
             raise ValueError(f"Unknown dataset {dataset_name}.")
 
+    # 确认数据源类型统一（目前的实现要求同一轮实验中使用的所有数据集必须来自同一类数据源）
     data_src_type = PREDEFINED_DATASETS[dataset_name_list[0]].datasrc_class
     if not all(
         PREDEFINED_DATASETS[dataset_name].datasrc_class is data_src_type
@@ -116,6 +117,7 @@ def pipeline(
     ):
         raise ValueError("Not supporting different types of data sources.")
 
+    # 创建数据源
     data_src: DataSource = PREDEFINED_DATASETS[dataset_name_list[0]].datasrc_class()
     data_name_list = data_config.get("data_name_list", None)
     if not data_name_list:
@@ -131,13 +133,18 @@ def pipeline(
     data_name_list = list(set(data_name_list))
     if not data_name_list:
         raise ValueError("No dataset specified.")
+    
+    # 加载数据列表
     data_src.load_series_list(data_name_list)
+
+    # 启动数据服务器，把数据放进“共享内存/缓存服务器”，供多个模型并行用
     data_server = GlobalStorageDataServer(data_src, ParallelBackend())
     data_server.start_async()
 
     # modeling
     model_factory_list = get_models(model_config)
 
+    # 训练模型并评测
     result_list = [
         eval_model(model_factory, data_name_list, evaluation_config)
         for model_factory in model_factory_list

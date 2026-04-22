@@ -142,6 +142,25 @@ class RollingForecastPredictBatchMaker(BatchMaker):
 
 class RollingForecast(ForecastingStrategy):
     """
+        滚动预测策略课程
+        该策略定义了一个预测任务，该任务在训练集上一次性完成设定，然后在测试集上以滚动窗口的方式进行预测。
+        所需的策略配置包括:
+        - horizon(整数)                 :   每次预测的长度；
+        - tv_ratio(浮点数)              :   在执行训练-测试分割时，训练集与验证集序列的比例；
+        - train_ratio_in_tv(浮点数)     :   在执行训练-验证分割时，训练序列的比例；
+        - stride(整数)                  :   滚动步长，即两个窗口之间的间隔；
+        - num_rollings(整数)            :   预测的最大步数；
+        所采用的指标包括所有的回归指标。
+        除了指定的指标之外，其他返回字段依次为:
+        - FieldNames.FILE_NAME          :   系列的名称；
+        - FieldNames.FIT_TIME           :   训练时间；
+        - FieldNames.INFERENCE_TIME     :   推理时间；
+        - FieldNames.ACTUAL_DATA        :   真实测试数据，以字符串形式编码。
+        - FieldNames.INFERENCE_DATA     :   预测数据，以字符串形式编码。
+        - FieldNames.LOG_INFO           :   评估器返回的任何日志信息。
+    """
+
+    """
     Rolling forecast strategy class
 
     This strategy defines a forecasting task that fits once on the training set and

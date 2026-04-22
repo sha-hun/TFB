@@ -3,7 +3,7 @@ import importlib
 import logging
 from typing import Any, Union, Dict, Callable, List
 
-from ts_benchmark.baselines import ADAPTER
+from ts_benchmark.baselines_old import ADAPTER
 
 logger = logging.getLogger(__name__)
 

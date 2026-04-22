@@ -103,21 +103,23 @@ def eval_model(
     model_factory: ModelFactory, series_list: list, evaluation_config: dict
 ) -> EvalResult:
     """
-    Evaluate the performance of the model on time series data.
-    Evaluate the model based on the provided model factory, time series list, and evaluation configuration, and return the DataFrame of the evaluation results.
-
-    :param model_factory: Model factory object used to create model instances.
-    :param series_list: A list containing time series names.
-    :param evaluation_config: Evaluate configuration information, including strategies, evaluation metrics, etc.
-    :return: The DataFrame containing the evaluation results.
+        评估模型在时间序列数据上的表现。
+        根据所提供的模型工厂、时间序列列表和评估配置对模型进行评估，并返回评估结果的 DataFrame 数据框。
+        :param 模型工厂: 用于创建模型实例的模型工厂对象。
+        :param 时间序列列表: 包含时间序列名称的列表。
+        :param 评估配置: 包括策略、评估指标等的评估配置信息。
+        :return: 包含评估结果的 DataFrame 数据框。
     """
+
     # Get the strategy class
     strategy_class = STRATEGY.get(evaluation_config["strategy_args"]["strategy_name"])
+    # Strategy class: <class 'ts_benchmark.evaluation.strategy.rolling_forecast.RollingForecast'>
     if strategy_class is None:
         raise RuntimeError("strategy_class is none")
 
     # Parse evaluation metric configuration
     metric = evaluation_config["metrics"]
+
     if metric == "all":
         metric = list(strategy_class.accepted_metrics())
     elif isinstance(metric, (str, dict)):
