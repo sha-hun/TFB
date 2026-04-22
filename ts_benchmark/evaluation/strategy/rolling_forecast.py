@@ -366,6 +366,15 @@ class RollingForecast(ForecastingStrategy):
         series_name: str,
     ) -> List:
         """
+        预测任务的批处理执行流水线。
+        参数 series：要评估的目标序列。
+        参数 meta_info：对应的元信息。
+        参数 model：用于预测的模型。
+        参数 series_name：目标序列的名称。
+        返回值：评估结果。
+        """
+        
+        """
         The batch execution pipeline of forecasting tasks.
 
         :param series: Target series to evaluate.

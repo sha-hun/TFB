@@ -204,17 +204,16 @@ class Strategy(metaclass=abc.ABCMeta):
     def _get_scalar_config_value(
         self, config_name: str, series_name: Optional[str]
     ) -> Any:
+        
         """
-        A helper method that retrieves a scalar config value for target series
-
-        This method handles special input values such as a mapping from data names to config values.
-        Subclasses are recommended to get config values using this method as long as the
-        config is scalar-valued.
-
-        :param config_name: The name of the config to retrieve.
-        :param series_name: The name of the series. If None, the default config values is returned.
-        :return: A scalar config value for the specified series name.
+        一个辅助方法，用于获取目标系列的标量配置值
+        此方法能够处理诸如将数据名称映射到配置值这样的特殊输入值。
+        如果配置是标量值的话，建议子类使用此方法来获取配置值。
+        :参数 config_name：要获取的配置文件的名称。
+        ：参数 series_name：系列的名称。若为 None，则返回默认的配置值。
+        ：返回：指定系列名称对应的单个配置值。
         """
+
         if config_name not in self.strategy_config:
             raise ValueError(f"Missing config {config_name}.")
         config_value = self.strategy_config[config_name]

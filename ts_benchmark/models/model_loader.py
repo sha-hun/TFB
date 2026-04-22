@@ -183,7 +183,20 @@ class ModelFactory:
         return self.model_factory(**self.model_hyper_params)
 
 
-def get_models(all_model_config: Dict) -> List[ModelFactory]:
+def get_models(all_model_config: Dict) -> List[ModelFactory]:\
+    """
+    根据模型配置获取 ModelFactory 对象列表。
+    参数 all_model_config：一个包含所有模型配置信息的字典，支持的字段有：
+        
+        - 模型：列表。模型信息列表，其中每个项目都是一个字典。
+        
+        每个字典中支持的字段有：
+            - model_name: str. 模型信息的路径。有关模型搜索策略的详细信息，请参阅 :func:`get_model_info`；
+            - adapter: str, 可选。用于封装找到的模型信息的适配器名称。必须是 :mod:`ts_benchmark.baselines.__init__` 中定义的适配器之一；
+            - recommend_model_hyper_params：字典，可选；基准为所有模型提供的全局推荐超参数字典；
+        
+        返回：用于实例化不同模型的模型工厂列表。
+    """
     """
     Obtain a list of ModelFactory objects based on model configuration.
 
