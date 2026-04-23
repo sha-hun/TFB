@@ -21,6 +21,14 @@ class ZWF(DeepForecastingModelBase):
         return ZWFModel(self.config)
     
     def _process(self, input, target, input_mark, target_mark):
+
+        """
+        对ETTh1_missing_4，input内容为
+        'HUFL', 'HULL', 'LUFL', 'LULL', 'MUFL', 'MULL', 'OT',                                           [0-6]
+        'mask_HUFL', 'mask_HULL', 'mask_LUFL', 'mask_LULL', 'mask_MUFL', 'mask_MULL', 'mask_OT',        [7-13]
+        't_dif_HUFL', 't_dif_HULL', 't_dif_LUFL', 't_dif_LULL', 't_dif_MUFL', 't_dif_MULL', 't_dif_OT'  [14-20]
+        't_idx',                                                                                        [21]
+        """
         """
         本方法作为模板方法，定义了数据处理和建模的标准流程，以及计算附加损失的规范。应根据自身需求实现具体的处理和计算逻辑。
 

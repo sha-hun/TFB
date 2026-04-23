@@ -28,7 +28,7 @@ def run():
     model_json = json.dumps(model_hyper_params)
 
     config_path = "rolling_forecast_config.json"
-    data_name = "ETTm1"
+    data_name = "ETTm1_missing_4"
     model_name = "ZWF"
     save_path = f"{data_name}\\{model_name}"
     deterministic = 'full'
