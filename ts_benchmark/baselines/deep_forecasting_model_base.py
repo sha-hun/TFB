@@ -12,8 +12,8 @@ from torch import optim
 from torch.utils.data import DataLoader
 from ts_benchmark.utils.get_device import get_device
 
-from ts_benchmark.baselines_old.utils import EarlyStopping, adjust_learning_rate
-from ts_benchmark.baselines_old.utils import (
+from ts_benchmark.baselines.utils import EarlyStopping, adjust_learning_rate
+from ts_benchmark.baselines.utils import (
     forecasting_data_provider,
     train_val_split,
     get_time_mark,
@@ -325,6 +325,7 @@ class DeepForecastingModelBase(ModelBase):
         :param criterion : The loss function to compute the loss between model predictions and ground truth.
         :returns:The mean loss computed over the validation dataset.
         """
+
         config = self.config
         total_loss = []
         self.model.eval()
@@ -369,6 +370,8 @@ class DeepForecastingModelBase(ModelBase):
         :param train_ratio_in_tv: Represents the splitting ratio of the training set validation set. If it is equal to 1, it means that the validation set is not partitioned.
         :return: The fitted model object.
         """
+
+        # 如果没有协变量，初始化为空字典，获取原始数据的特征维度，如果有外生变量，将其与训练数据合并
         if covariates is None:
             covariates = {}
         series_dim = train_valid_data.shape[-1]
@@ -376,6 +379,8 @@ class DeepForecastingModelBase(ModelBase):
         if exog_data is not None:
             train_valid_data = pd.concat([train_valid_data, exog_data], axis=1)
 
+        # 超参数调优，如果只有1个特征，调用单变量超参数调优，否则调用多变量超参数调优，设置是否丢弃最后一个不完整的批
+        # 但是注意这里它会用代码指定label_len且无法通过参数设置来改变
         if train_valid_data.shape[1] == 1:
             train_drop_last = False
             self.single_forecasting_hyper_param_tune(train_valid_data)
@@ -383,20 +388,26 @@ class DeepForecastingModelBase(ModelBase):
             train_drop_last = True
             self.multi_forecasting_hyper_param_tune(train_valid_data)
 
+        # 初始化模型和多GPU
         self.model = self._init_model()
 
         device_ids = np.arange(torch.cuda.device_count()).tolist()
         if len(device_ids) > 1 and self.config.parallel_strategy == "DP":
             self.model = nn.DataParallel(self.model, device_ids=device_ids)
         print(
-            "----------------------------------------------------------",
+            "🤖----------------------------------------------------------",
             self.model_name,
         )
+
         config = self.config
+
+        # 划分训练和验证集
         train_data, valid_data = train_val_split(
             train_valid_data, train_ratio_in_tv, config.seq_len
         )
-
+        # 数据归一化，如果启用归一化，对训练数据进行归一化，并使用训练数据的统计信息对验证数据进行相同的归一化处理
+        # print(f"归一化器训练数据的形状是{train_data.shape}")
+        # print(f"训练数据是{train_data}")
         self.scaler.fit(train_data.values)
 
         if config.norm:
@@ -422,6 +433,7 @@ class DeepForecastingModelBase(ModelBase):
                 drop_last=False,
             )
 
+        # 训练数据加载器，使用 forecasting_data_provider 函数创建训练数据集和数据加载器，配置参数包括时间编码、批大小、是否打乱数据以及是否丢弃最后一个不完整的批次。
         train_dataset, self.train_data_loader = forecasting_data_provider(
             train_data,
             config,
@@ -431,15 +443,14 @@ class DeepForecastingModelBase(ModelBase):
             drop_last=train_drop_last,
         )
 
-        # Define the loss function and optimizer
+        # Define the loss function and optimizer 初始化损失函数和优化器
         criterion, optimizer = self._init_criterion_and_optimizer()
 
         if config.use_amp == 1:
             scaler = torch.cuda.amp.GradScaler()
 
-
+        # 模型准备
         device = get_device()
-
 
         self.early_stopping = self._init_early_stopping()
         self.model.to(device)
@@ -449,6 +460,7 @@ class DeepForecastingModelBase(ModelBase):
 
         print(f"Total trainable parameters: {total_params}")
 
+        # 训练循环
         for epoch in range(config.num_epochs):
             self.model.train()
             # for input, target, input_mark, target_mark in train_data_loader:
@@ -462,6 +474,10 @@ class DeepForecastingModelBase(ModelBase):
                     input_mark.to(device),
                     target_mark.to(device),
                 )
+
+                # print("注意！ 开始调试！")
+                # print(f"训练数据的形状是 {input.shape} {target.shape} {input_mark.shape} {target_mark.shape}")
+
                 # decoder input
                 out_loss = self._process(input, target, input_mark, target_mark)
                 additional_loss = 0
@@ -512,6 +528,7 @@ class DeepForecastingModelBase(ModelBase):
         :param covariates: Additional external variables
         :return: An array of predicted results.
         """
+
         if covariates is None:
             covariates = {}
         series_dim = series.shape[-1]
@@ -606,6 +623,7 @@ class DeepForecastingModelBase(ModelBase):
         :param batch_maker: Make batch data used for prediction.
         :return: An array of predicted results.
         """
+
         if self.check_point is not None:
             self.model.load_state_dict(self.check_point)
 
@@ -616,6 +634,7 @@ class DeepForecastingModelBase(ModelBase):
         self.model.eval()
 
         input_data = batch_maker.make_batch(self.config.batch_size, self.config.seq_len)
+
         input_np = input_data["input"]
 
         series_dim = input_np.shape[-1]
@@ -624,7 +643,9 @@ class DeepForecastingModelBase(ModelBase):
             covariates = {}
         else:
             covariates = input_data["covariates"]
+
         exog_data = covariates.get("exog")
+
         if exog_data is not None:
             input_np = np.concatenate((input_np, exog_data), axis=2)
             if (

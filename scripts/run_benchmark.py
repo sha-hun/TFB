@@ -329,6 +329,37 @@ if __name__ == "__main__":
     evaluation_config = build_evaluation_config(args, config_data)
     report_config = build_report_config(args, config_data)
 
+    # # 输出数据配置
+    # print("\n" + "=" * 80)
+    # print("📊 数据配置 (Data Config)")
+    # print("=" * 80)
+    # import json
+    # print(json.dumps(data_config, indent=2, ensure_ascii=False))
+    # print("=" * 80)
+    
+    # # 输出模型配置
+    # print("\n" + "=" * 80)
+    # print("🤖 模型配置 (Model Config)")
+    # print("=" * 80)
+    # print(json.dumps(model_config, indent=2, ensure_ascii=False))
+    # print("=" * 80 + "\n")
+
+    # # 输出评估配置
+    # print("\n" + "=" * 80)
+    # print("📈 评估配置 (Evaluation Config)")
+    # print("=" * 80)
+    # import json
+    # print(json.dumps(evaluation_config, indent=2, ensure_ascii=False))
+    # print("=" * 80)
+    
+    # # 输出报告配置
+    # print("\n" + "=" * 80)
+    # print("📋 报告配置 (Report Config)")
+    # print("=" * 80)
+    # print(json.dumps(report_config, indent=2, ensure_ascii=False))
+    # print("=" * 80 + "\n")
+    
+
     ParallelBackend().init(
         backend=args.eval_backend,
         n_workers=args.num_workers,

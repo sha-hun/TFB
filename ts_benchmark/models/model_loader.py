@@ -183,7 +183,7 @@ class ModelFactory:
         return self.model_factory(**self.model_hyper_params)
 
 
-def get_models(all_model_config: Dict) -> List[ModelFactory]:\
+def get_models(all_model_config: Dict) -> List[ModelFactory]:
     """
     根据模型配置获取 ModelFactory 对象列表。
     参数 all_model_config：一个包含所有模型配置信息的字典，支持的字段有：
@@ -196,8 +196,7 @@ def get_models(all_model_config: Dict) -> List[ModelFactory]:\
             - recommend_model_hyper_params：字典，可选；基准为所有模型提供的全局推荐超参数字典；
         
         返回：用于实例化不同模型的模型工厂列表。
-    """
-    """
+
     Obtain a list of ModelFactory objects based on model configuration.
 
     :param all_model_config: A dictionary that contains all model configuration information, supported fields are:

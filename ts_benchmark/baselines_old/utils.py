@@ -240,6 +240,11 @@ def get_time_mark(
 
 
 def forecasting_data_provider(data, config, timeenc, batch_size, shuffle, drop_last):
+
+    # print("config内容是")
+    # for key, value in config.__dict__.items():
+    #     print(f"  {key}: {value}")
+
     dataset = DatasetForTransformer(
         dataset=data,
         history_len=config.seq_len,

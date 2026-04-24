@@ -45,6 +45,11 @@ class ForecastingStrategy(Strategy, metaclass=abc.ABCMeta):
         meta_info = data_pool.get_series_meta_info(series_name)
 
         try:
+            # print(f"Executing forecasting strategy on series: {series_name}")
+            # print("数据内容是")
+            # print(data)
+            # print("数据形状是")
+            # print(data.shape)
             single_series_results = self._execute(
                 data, meta_info, model_factory, series_name
             )
@@ -65,6 +70,14 @@ class ForecastingStrategy(Strategy, metaclass=abc.ABCMeta):
         series_name: str,
     ) -> Any:
         """
+        预测任务的执行流程
+        子类应重写此方法，而不是 :meth:`execute` 方法。
+        参数 series：要评估的目标序列。
+        参数 meta_info：对应的元信息。
+        参数 model_factory：用于创建模型的工厂。
+        参数 series_name：目标序列的名称。
+        返回值：评估结果。
+        
         The execution pipeline of forecasting tasks
 
         Subclasses are expected to overwrite this method, instead of the :meth:`execute` method.

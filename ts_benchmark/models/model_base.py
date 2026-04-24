@@ -55,6 +55,13 @@ class ModelBase(metaclass=abc.ABCMeta):
         **kwargs,
     ) -> "ModelBase":
         """
+        对时间序列数据进行建模
+        :param train_valid_data: 用于训练和验证的时间序列数据。
+        ：param covariates： 附加的外部变量
+        键 "exog" ：与 `train_data` 对齐的相应外生数据。
+        ：param train_ratio_in_tv： 表示训练集与验证集的划分比例。
+        如果其值等于 1，则表示验证集未进行划分。
+        ：返回：拟合的模型对象。
         Fit a model on time series data
 
         :param train_valid_data: Time series data used for training and validation.

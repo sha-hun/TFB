@@ -249,6 +249,13 @@ class RollingForecast(ForecastingStrategy):
         series_name: str,
     ) -> List:
         """
+        预测任务执行流水线的入口函数
+        参数 series：要评估的目标序列。
+        参数 meta_info：对应的元信息。
+        参数 model_factory：用于创建模型的工厂。
+        参数 series_name：目标序列的名称。
+        返回值：评估结果。
+
         The entry function of execution pipeline of forecasting tasks
 
         :param series: Target series to evaluate.
@@ -391,19 +398,34 @@ class RollingForecast(ForecastingStrategy):
         train_ratio_in_tv = self._get_scalar_config_value(
             "train_ratio_in_tv", series_name
         )
+
         tv_ratio = self._get_scalar_config_value("tv_ratio", series_name)
 
         train_length, test_length = self._get_split_lens(series, meta_info, tv_ratio)
         train_valid_data, test_data = split_time(series, train_length)
 
+        # 提取目标变量和外生变量
         target_train_valid_data, exog_train_valid_data = split_channel(
             train_valid_data, target_channel
         )
+
+        # print("目标变量的形状是")
+        # print(target_train_valid_data.shape)
+        # print("外生变量的形状是")
+        # print(exog_train_valid_data.shape)
+
+        # print("目标变量")
+        # print(target_train_valid_data)
+        # print("外生变量")
+        # print(exog_train_valid_data)
+
+        # 提取全量数据的目标和外生变量
         target4batch, exog_data4batch = split_channel(series, target_channel)
         covariates_train, covariates4batch = {}, {}
         covariates_train["exog"] = exog_train_valid_data
         covariates4batch["exog"] = exog_data4batch
 
+        # 模型训练
         start_fit_time = time.time()
         fit_method = model.forecast_fit if hasattr(model, "forecast_fit") else model.fit
         fit_method(
@@ -413,17 +435,21 @@ class RollingForecast(ForecastingStrategy):
         )
         end_fit_time = time.time()
 
+        # 获取评估缩放器
         eval_scaler = self._get_eval_scaler(target_train_valid_data, train_ratio_in_tv)
 
+        # 生成滚动预测的索引
         index_list = self._get_index(train_length, test_length, horizon, stride)
         index_list = index_list[:num_rollings]
 
+        # 创建批处理器，用于生成滚动预测的批数据
         batch_maker = RollingForecastEvalBatchMaker(
             target4batch,
             index_list,
             covariates4batch,
         )
 
+        # 批量预测 
         all_predicts = []
         total_inference_time = 0
         predict_batch_maker = RollingForecastPredictBatchMaker(batch_maker)
@@ -434,6 +460,7 @@ class RollingForecast(ForecastingStrategy):
             total_inference_time += end_inference_time - start_inference_time
             all_predicts.append(predicts)
 
+        # 合并预测结果和目标
         all_predicts = np.concatenate(all_predicts, axis=0)
         targets = batch_maker.make_batch_eval(horizon)["target"]
         if len(targets) != len(all_predicts):
@@ -450,12 +477,14 @@ class RollingForecast(ForecastingStrategy):
             all_test_results.append(single_series_results)
         single_series_results = np.mean(np.stack(all_test_results), axis=0).tolist()
 
+        # 编码数据（可选）如果配置要求保存真实值和预测值，则编码（压缩）这些数据，以便能够在结果中返回，否则返回 NaN。
         save_true_pred = self._get_scalar_config_value("save_true_pred", series_name)
         actual_data_encoded = self._encode_data(targets) if save_true_pred else np.nan
         inference_data_encoded = (
             self._encode_data(all_predicts) if save_true_pred else np.nan
         )
 
+        # 组装最终结果
         single_series_results += [
             series_name,
             end_fit_time - start_fit_time,
