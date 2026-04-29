@@ -13,29 +13,11 @@ def run():
     # 影响实验流程的参数设置，例如Evaluation Config等
     strategy_args = {"horizon": 96 ,"seed":2026, "target_channel": [[0,7]], "tv_ratio": 0.75, "train_ratio_in_tv": 0.8}  # 预测未来36步，预测目标是第0到第6列（HUFL 到 OT）
     
-    model_hyper_params = {  # 影响模型训练过程的超参数设置,会传入模型中，以config的形式提供给模型使用，例如enc_in、label_len等参数，模型可以根据这些参数进行相应的处理和计算
-        "batch_size": 32,
-        "c_out": 7,
-        "loss": "MAE",
-        "lr": 0.001,
-        "lradj": "type1",
-        "norm": True,
-        "num_epochs": 100,
-        "patience": 5,
-        "period": [48, 90, 102, 360, 720], 
-        "seq_len": 512,
-        "horizon": 96,
-        "enc_in":7,
-        "data_dim": 29,  # 输入数据的维度，包含原始值、miss、mask、时间差分特征和时间索引等信息
-        "label_len": 0,# 在 Informer / Transformer 类的时间序列模型 中，decoder 的输入通常是：label_len (历史真实值) + pred_len (预测步长)
-        "num_seasonal_components" : 4,
-        "max_season_length" : 1440, # 根据数据的周期性特征设置季节性组件的长度，例如168代表一周的小时级数据
-        "trend_length" : 720,  # 趋势组件的长度，可以根据数据的长期趋势特征设置，例如720代表一个月的小时级数据
-        "hidden_dim" : 256,
-        "hidden_dim_mask" : 16,
-        "tau_init" : 12,
-        "num_heads": 4,
-    }
+    model_hyper_params = {"CI": 1, "batch_size": 32, "d_ff": 512, "d_model": 512, "dropout": 0.5, "e_layers": 1, 
+                          "factor": 3, "fc_dropout": 0.1, "horizon": 96, "k": 1, "loss": "MAE", "lr": 0.0005, "lradj": "type1",
+                            "n_heads": 1, "norm": True, "num_epochs": 100, "num_experts": 2, ""
+                            "patch_len": 48, "patience": 5, "seq_len": 512, 'real_data_dim' : 7,
+                            }
 
     strategy_json = json.dumps(strategy_args)
     model_json = json.dumps(model_hyper_params)
@@ -43,7 +25,7 @@ def run():
     config_path = "rolling_forecast_config.json"
     data_name = "ETTh1_missing_4_linear_filled"
     # data_name = "ETTh1_10test_linear_filled"  # 用于测试的10条数据版本
-    model_name = "ZWF"
+    model_name = "DUET"
     save_path = f"{data_name}\\{model_name}"
     deterministic = 'full'
     gpus = "0"
@@ -94,5 +76,3 @@ def run():
 
 if __name__ == "__main__":
     run()
-
-    #

@@ -21,14 +21,12 @@ class ResidualDecomposition(nn.Module):
 
         self.E_trend = nn.Parameter(torch.randn(config['trend_length'], C))
         self.E_seasonal = nn.Parameter(torch.randn(config['num_seasonal_components'], config['max_season_length'], C))
+
         # 每个周期的可学习长度参数（浮点数）
         self.raw_lengths = nn.Parameter(config['max_season_length'] * torch.rand(config['num_seasonal_components'], 1))
 
         # 从周期捕获对结果的影响
-        self.E_seasonal_linear = nn.Linear(config['seq_len'] * C , config['horizon'] * C)
-
-        self.unique_lengths = set()  # 用于记录实际使用的周期长度，辅助调试
-        self.pre_len = 0
+        self.E_seasonal_linear = nn.Linear(config['seq_len'] * C , config['horizon'] * config['data_dim'])
     
     def forward(self, x_enc, time_idx):
         """
@@ -54,47 +52,15 @@ class ResidualDecomposition(nn.Module):
         # -----------------------------
         X_Residual = []
         Y_seasonal_tot = 0
+        seasonal_length = self.E_seasonal.shape[1]
+        time_idx_mod = (time_idx.squeeze(-1) % seasonal_length).long() 
         for i in range(self.num_seasonal_components):
-            # -----------------------------
-            # round + STE (可微分近似整数)
-            # -----------------------------
-            length_float = torch.clamp(self.raw_lengths[i], 2.0, self.max_season_length)
-            # STE 近似 round
-            length_ste = (length_float.round() - length_float).detach() + length_float
-            Nsi = length_ste  # 保留浮点数，后续插值使用
-            # print(f"Component {i}: float={length_float.item():.2f}, STE round={Nsi.item():.2f}")
+            seasonal_x = self.E_seasonal[i][time_idx_mod]
 
-            # -----------------------------
-            # 循环取模索引，浮点索引
-            # -----------------------------
-            t_idx = time_idx.squeeze(-1).float() % Nsi  # (batch, seq_len), float
-
-            # 插值索引
-            left_idx = t_idx.floor().long()                        # (batch, seq_len)
-            right_idx = (left_idx + 1) % self.max_season_length   # 循环
-            weight = (t_idx - t_idx.floor()).unsqueeze(-1)        # (batch, seq_len, 1)
-
-            self.unique_lengths.add(length_ste.long().item()) # 记录实际使用的周期长度，辅助调试
-            # 如果发生变化，就输出
-            if len(self.unique_lengths) > self.pre_len:
-                print(f"Component {i}: Updated unique lengths: {self.unique_lengths}")
-                self.pre_len = len(self.unique_lengths)  # 记录实际使用的周期长度，辅助调试
-            # 如果发生变化，就输出
-            if len(self.unique_lengths) > self.pre_len:
-                print(f"Component {i}: Updated unique lengths: {self.unique_lengths}")
-                self.pre_len = len(self.unique_lengths)
-
-            seasonal_left = self.E_seasonal[i, left_idx]   # (batch, seq_len, C)
-            seasonal_right = self.E_seasonal[i, right_idx] # (batch, seq_len, C)
-            seasonal_aligned = (1 - weight) * seasonal_left + weight * seasonal_right  # (batch, seq_len, C)
-
-            # -----------------------------
-            # 残差
-            # -----------------------------
-            residual_i = x_detrended - seasonal_aligned
+            residual_i = x_detrended - seasonal_x
             X_Residual.append(residual_i)
 
-            Y_seasonal = self.E_seasonal_linear(seasonal_aligned.reshape(batch, -1)).reshape(batch, self.horizon, -1)  # (batch, horizon, C)
+            Y_seasonal = self.E_seasonal_linear(seasonal_x.reshape(batch, -1)).reshape(batch, self.horizon, -1)
             Y_seasonal_tot = Y_seasonal_tot + Y_seasonal
 
         X_Residual = torch.stack(X_Residual, dim=2)  # (batch, seq_len, num_seasonal_components, C)
@@ -221,7 +187,6 @@ class HybridDecomposition(nn.Module):
 
         # 计算 H_idx 和 H_dif
         H_idx = self.A_idx_linear(A_idx)  # (B, T, T) -> (B, T, hidden_dim_mask)
-        # print(f"A_dif shape: {A_dif.shape}")
         H_dif = self.A_dif_linear(A_dif.reshape(B, T, T * C))  # (B, T, T*C) -> (B, T, hidden_dim_mask)
 
         # 融合三个表示 MLP 生成注意力 bias Gm
@@ -289,7 +254,7 @@ class BiasedMultiheadAttention(nn.Module):
         self.k_proj = nn.Linear(hidden_dim * 2, hidden_dim)
         self.v_proj = nn.Linear(hidden_dim, hidden_dim)
 
-        self.out_proj = nn.Linear(hidden_dim, config['enc_in'])  # 输出维度为 enc_in，后续会补齐到 data_dim
+        self.out_proj = nn.Linear(hidden_dim, hidden_dim)
 
     def forward(self, Hx, Hf, Gm):
         """
@@ -345,7 +310,7 @@ class ZWFModel(nn.Module):
 
         self.horizon = config['horizon']
 
-        self.Linear = nn.Linear( 2 * config['num_seasonal_components'] * C, config['enc_in'])
+        self.Linear = nn.Linear( 2 * config['num_seasonal_components'] * C, config['data_dim'])
 
         self.residual_decomposition = ResidualDecomposition(config=config)
 
@@ -354,8 +319,8 @@ class ZWFModel(nn.Module):
         self.high_freq_fft = HighFreqFFT(config=config)
 
         self.Y_atten = BiasedMultiheadAttention(config=config)
-
-        self.Y_linear = nn.Linear(config['seq_len'], config['horizon'])
+        self.Y_linear = nn.Linear(config['hidden_dim'], config['data_dim'])
+        self.Y_linear2 = nn.Linear(config['seq_len'], config['horizon'])
 
     def forward(self, x_enc, mask, time_dif, time_idx):
         # x_enc: [batch_size, seq_len, c]
@@ -368,7 +333,7 @@ class ZWFModel(nn.Module):
         # print(f"time_dif shape: {time_dif.shape}")
         # print(f"time_idx shape: {time_idx.shape}")
         
-        batch, T, data_dim = x_enc.shape
+        batch, T, C = x_enc.shape
 
         X_Residual, Y_seasonal_tot = self.residual_decomposition(x_enc, time_idx)  # (batch, seq_len, num_seasonal_components, C)
 
@@ -376,13 +341,11 @@ class ZWFModel(nn.Module):
 
         Hf = self.high_freq_fft(X_Residual)                                         # (B, T, hidden_dim)
 
-        Y = self.Y_atten(Hx, Hf, Gm)  # (B, T, C)
-        # print(f"Y shape after linear: {Y.shape}")
-        Y = self.Y_linear(Y.permute(0, 2, 1)).permute(0, 2, 1)  # (B, horizon, c)
-        # print(f"Y shape after linear2: {Y.shape}")
+        Y = self.Y_atten(Hx, Hf, Gm)  # (B, T, hidden_dim)
+        Y = self.Y_linear(Y)  # (B, T, data_dim)
+        Y = self.Y_linear2(Y.permute(0, 2, 1)).permute(0, 2, 1)  # (B, horizon, data_dim)
 
-        output = Y  + Y_seasonal_tot  # [batch_size, horizon, c]
-
+        output = Y  + Y_seasonal_tot  # [batch_size, horizon, 22]
         loss_importance = torch.tensor(0.0, device=x_enc.device)
         # print(f"输出的形状 : {output.shape}")
         return output, loss_importance

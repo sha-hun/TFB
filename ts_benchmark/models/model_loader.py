@@ -3,7 +3,7 @@ import importlib
 import logging
 from typing import Any, Union, Dict, Callable, List
 
-from ts_benchmark.baselines_old import ADAPTER
+from ts_benchmark.baselines import ADAPTER
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +15,7 @@ def _import_attribute(attr_path: str) -> Any:
     :param attr_path: A dot-separated path.
     :return: If the target attribute exists, the attribute is returned, otherwise return None.
     """
+
     package_name, name = attr_path.rsplit(".", 1)
     package = importlib.import_module(package_name)
     return getattr(package, name, None)
@@ -56,7 +57,6 @@ def import_model_info(model_path: str) -> Union[Dict, Callable]:
     :return: The imported model information.
     """
     model_info = _import_attribute(model_path)
-
     if not isinstance(model_info, (Dict, Callable)):
         raise ValueError(
             f"Unsupported model info with type {type(model_info).__name__}"
